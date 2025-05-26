@@ -1,0 +1,165 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aniray"
+version = "0.1.0"
+description = "Animate xarray dataset along arbitrary axis"
+authors = [
+    {name = "Landman Bester", email = "lbester@sarao.ac.za"},
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+keywords = ["scientific-computing", "jax", "ray", "numerical-analysis"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    "xarray>=2023.10.1",
+    "zarr>=2.16.1",
+    "ray[default]>=2.8.0",
+    "numpy>=1.25.2",
+    "websockets>=11.0.3",
+    "python-multipart>=0.0.6",
+
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+docs = [
+    "sphinx>=6.0.0",
+    "sphinx-rtd-theme>=1.2.0",
+    "numpydoc>=1.5.0",
+]
+all = ["aniray[dev,docs]"]
+
+[project.urls]
+Homepage = "https://github.com/landmanbester/aniray"
+Repository = "https://github.com/landmanbester/aniray"
+Documentation = "https://aniray.readthedocs.io"
+"Bug Tracker" = "https://github.com/landmanbester/aniray/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["aniray*"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+# Black configuration
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+# isort configuration
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["aniray"]
+known_third_party = ["numpy", "scipy", "jax", "ray", "numba", "pytest"]
+
+# pytest configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=aniray",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "gpu: marks tests that require GPU",
+    "distributed: marks tests that require Ray cluster",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["src/aniray"]
+omit = [
+    "*/tests/*",
+    "*/benchmarks/*",
+    "setup.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+]
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "jax.*",
+    "ray.*",
+    "numba.*",
+    "scipy.*",
+]
+ignore_missing_imports = true

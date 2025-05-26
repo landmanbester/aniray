@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N-Dimensional Data Animator with Ray</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .control-group {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .control-group h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        select, input, button {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 8px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .visualization {
+            padding: 20px;
+            height: 600px;
+        }
+        
+        .performance-controls {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .performance-controls h4 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+        
+        .resolution-info {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+            padding: 5px;
+            background: #f0f0f0;
+            border-radius: 3px;
+        }
+        
+        .animation-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .animation-controls input[type="range"] {
+            flex: 1;
+            margin: 0;
+        }
+        
+        .frame-info {
+            background: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            margin-top: 10px;
+        }
+        
+        .performance-info {
+            background: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        
+        .error {
+            background: #dc3545;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status {
+            padding: 10px 20px;
+            background: #e9ecef;
+            font-family: monospace;
+            font-size: 12px;
+            color: #495057;
+            border-top: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Ray-Powered N-Dimensional Data Animator</h1>
+            <p>High-performance visualization with adaptive resolution streaming</p>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h3>Data Selection</h3>
+                <select id="dataVar">
+                    <option value="">Select data variable...</option>
+                </select>
+                <select id="axis1">
+                    <option value="">Select X-axis...</option>
+                </select>
+                <select id="axis2">
+                    <option value="">Select Y-axis...</option>
+                </select>
+                <button onclick="loadData()">Load Visualization</button>
+            </div>
+            
+            <div class="control-group">
+                <h3>Performance & Resolution</h3>
+                <div class="performance-controls">
+                    <h4>⚡ Performance Options</h4>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="autoDownsample" checked>
+                        <label for="autoDownsample">Auto-optimize resolution</label>
+                    </div>
+                    <select id="manualDownsample">
+                        <option value="1">Full Resolution</option>
+                        <option value="2">1/2 Resolution</option>
+                        <option value="4">1/4 Resolution</option>
+                        <option value="8">1/8 Resolution</option>
+                        <option value="16">1/16 Resolution</option>
+                    </select>
+                </div>
+                <div class="resolution-info" id="resolutionInfo">
+                    Resolution will be calculated automatically
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Animation</h3>
+                <select id="animateAxis">
+                    <option value="">Select animation axis...</option>
+                </select>
+                <div class="animation-controls">
+                    <button onclick="startAnimation()" id="animateBtn">▶ Animate</button>
+                    <button onclick="stopAnimation()" id="stopBtn" disabled>⏹ Stop</button>
+                </div>
+                <input type="range" id="fpsSlider" min="1" max="30" value="10">
+                <label for="fpsSlider">FPS: <span id="fpsValue">10</span></label>
+                <input type="range" id="batchSlider" min="1" max="16" value="4">
+                <label for="batchSlider">Batch Size: <span id="batchValue">4</span></label>
+            </div>
+            
+            <div class="control-group">
+                <h3>Other Dimensions</h3>
+                <div id="otherDimensions">
+                    <!-- Dynamic content for other dimension controls -->
+                </div>
+                <div class="frame-info" id="frameInfo" style="display: none;">
+                    Frame: <span id="currentFrame">0</span> / <span id="totalFrames">0</span>
+                </div>
+                <div class="performance-info" id="performanceInfo" style="display: none;">
+                    Processing with Ray workers
+                </div>
+                <div class="progress-bar" id="progressBar" style="display: none;">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="visualization">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Loading dataset with Ray workers...</p>
+            </div>
+            <div id="plot"></div>
+        </div>
+        
+        <div class="status" id="status">
+            Ready to load dataset...
+        </div>
+    </div>
+
+    <script>
+        let datasetInfo = null;
+        let websocket = null;
+        let isAnimating = false;
+        let currentData = null;
+        let animationProgress = 0;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDatasetInfo();
+            setupControls();
+            initWebSocket();
+        });
+        
+        function setupControls() {
+            // FPS slider
+            document.getElementById('fpsSlider').addEventListener('input', function() {
+                document.getElementById('fpsValue').textContent = this.value;
+            });
+            
+            // Batch size slider
+            document.getElementById('batchSlider').addEventListener('input', function() {
+                document.getElementById('batchValue').textContent = this.value;
+            });
+            
+            // Auto downsample checkbox
+            document.getElementById('autoDownsample').addEventListener('change', function() {
+                const manualSelect = document.getElementById('manualDownsample');
+                manualSelect.disabled = this.checked;
+                updateResolutionInfo();
+            });
+            
+            // Manual downsample select
+            document.getElementById('manualDownsample').addEventListener('change', updateResolutionInfo);
+        }
+        
+        function updateResolutionInfo() {
+            const autoDownsample = document.getElementById('autoDownsample').checked;
+            const manualFactor = document.getElementById('manualDownsample').value;
+            const infoDiv = document.getElementById('resolutionInfo');
+            
+            if (autoDownsample) {
+                infoDiv.textContent = "Resolution will be calculated automatically for optimal performance";
+            } else {
+                const factor = parseInt(manualFactor);
+                if (factor === 1) {
+                    infoDiv.textContent = "Using full resolution (may be slow for large datasets)";
+                } else {
+                    infoDiv.textContent = `Using 1/${factor} resolution for faster performance`;
+                }
+            }
+        }
+        
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = function() {
+                updateStatus('WebSocket connected - Ray workers ready');
+            };
+            
+            websocket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                handleWebSocketMessage(message);
+            };
+            
+            websocket.onclose = function() {
+                updateStatus('WebSocket disconnected - reconnecting...');
+                setTimeout(initWebSocket, 3000);
+            };
+        }
+        
+        function handleWebSocketMessage(message) {
+            if (message.type === 'frame') {
+                updateVisualization(message.data);
+                updateFrameInfo(message.frame_index, message.total_frames, message.animate_axis_value);
+                updateProgress(message.frame_index, message.total_frames);
+            } else if (message.type === 'animation_start') {
+                document.getElementById('performanceInfo').style.display = 'block';
+                document.getElementById('progressBar').style.display = 'block';
+                updateStatus(`Animation started: ${message.total_frames} frames, downsample: ${message.downsample_factor}x`);
+            } else if (message.type === 'animation_complete') {
+                document.getElementById('performanceInfo').style.display = 'none';
+                document.getElementById('progressBar').style.display = 'none';
+                updateStatus('Animation completed');
+                stopAnimation();
+            } else if (message.error) {
+                showError(message.error);
+                stopAnimation();
+            }
+        }
+        
+        function updateProgress(current, total) {
+            const percent = ((current + 1) / total) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+        }
+        
+        async function loadDatasetInfo() {
+            showLoading(true);
+            try {
+                updateStatus('Fetching dataset information...');
+                const response = await fetch('/dataset-info');
+                datasetInfo = await response.json();
+                
+                if (datasetInfo.error) {
+                    showError(datasetInfo.error);
+                    return;
+                }
+                
+                console.log('Dataset info received:', datasetInfo);
+                populateControls();
+                updateStatus(`Ray dataset loaded: ${datasetInfo.dimensions.length} dimensions, ${datasetInfo.data_vars.length} variables`);
+                
+            } catch (error) {
+                showError(`Failed to load dataset info: ${error.message}`);
+                console.error('Error loading dataset info:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function populateControls() {
+            // Populate data variables
+            const dataVarSelect = document.getElementById('dataVar');
+            dataVarSelect.innerHTML = '<option value="">Select data variable...</option>';
+            datasetInfo.data_vars.forEach(varName => {
+                const option = document.createElement('option');
+                option.value = varName;
+                option.textContent = varName;
+                dataVarSelect.appendChild(option);
+            });
+            
+            // Populate axis selectors
+            ['axis1', 'axis2'].forEach(selectId => {
+                const select = document.getElementById(selectId);
+                select.innerHTML = '<option value="">Select axis...</option>';
+                datasetInfo.dimensions.forEach(dim => {
+                    const option = document.createElement('option');
+                    option.value = dim;
+                    const coordInfo = datasetInfo.coords[dim];
+                    const typeInfo = coordInfo.is_numeric ? 'numeric' : 'non-numeric';
+                    option.textContent = `${dim} (${datasetInfo.dimension_sizes[dim]}, ${typeInfo})`;
+                    select.appendChild(option);
+                });
+            });
+            
+            // Populate animation axis (only numeric coordinates)
+            const animateSelect = document.getElementById('animateAxis');
+            animateSelect.innerHTML = '<option value="">Select animation axis...</option>';
+            datasetInfo.dimensions.forEach(dim => {
+                const coordInfo = datasetInfo.coords[dim];
+                if (coordInfo.is_numeric) {
+                    const option = document.createElement('option');
+                    option.value = dim;
+                    option.textContent = `${dim} (${datasetInfo.dimension_sizes[dim]}, ${coordInfo.min?.toFixed(2)} to ${coordInfo.max?.toFixed(2)})`;
+                    animateSelect.appendChild(option);
+                }
+            });
+            
+            // Show warning if no numeric axes available for animation
+            const numericAxes = datasetInfo.dimensions.filter(dim => datasetInfo.coords[dim].is_numeric);
+            if (numericAxes.length === 0) {
+                showError('Warning: No numeric coordinates found. Animation may not be available.');
+            } else if (numericAxes.length < 3) {
+                updateStatus(`Note: Only ${numericAxes.length} numeric axes available for animation and display`);
+            }
+            
+            // Create controls for other dimensions
+            updateOtherDimensionsControls();
+        }
+        
+        function updateOtherDimensionsControls() {
+            const container = document.getElementById('otherDimensions');
+            container.innerHTML = '';
+            
+            const axis1 = document.getElementById('axis1').value;
+            const axis2 = document.getElementById('axis2').value;
+            const animateAxis = document.getElementById('animateAxis').value;
+            
+            datasetInfo.dimensions.forEach(dim => {
+                if (dim !== axis1 && dim !== axis2 && dim !== animateAxis) {
+                    const coordInfo = datasetInfo.coords[dim];
+                    const div = document.createElement('div');
+                    
+                    if (coordInfo.is_numeric) {
+                        // Numeric coordinate - use slider
+                        div.innerHTML = `
+                            <label for="dim_${dim}">${dim} (${coordInfo.min?.toFixed(2)} - ${coordInfo.max?.toFixed(2)}):</label>
+                            <input type="range" id="dim_${dim}" min="0" max="${datasetInfo.dimension_sizes[dim] - 1}" value="0" 
+                                   onchange="updateDimensionValue('${dim}', this.value)">
+                            <span id="dim_${dim}_value">0</span>
+                        `;
+                    } else {
+                        // Non-numeric coordinate - use dropdown
+                        const maxOptions = Math.min(20, datasetInfo.dimension_sizes[dim]); // Limit dropdown size
+                        let selectOptions = '<option value="0">0</option>';
+                        
+                        // Add some sample options if we have sample values
+                        if (coordInfo.sample_values) {
+                            for (let i = 1; i < Math.min(maxOptions, coordInfo.sample_values.length); i++) {
+                                selectOptions += `<option value="${i}">${i} (${coordInfo.sample_values[i]})</option>`;
+                            }
+                        } else {
+                            // Just show indices
+                            for (let i = 1; i < maxOptions; i++) {
+                                selectOptions += `<option value="${i}">${i}</option>`;
+                            }
+                        }
+                        
+                        if (datasetInfo.dimension_sizes[dim] > maxOptions) {
+                            selectOptions += `<option disabled>... (${datasetInfo.dimension_sizes[dim] - maxOptions} more)</option>`;
+                        }
+                        
+                        div.innerHTML = `
+                            <label for="dim_${dim}">${dim} (${coordInfo.dtype}):</label>
+                            <select id="dim_${dim}" onchange="updateDimensionValue('${dim}', this.value)">
+                                ${selectOptions}
+                            </select>
+                            <span id="dim_${dim}_value">0</span>
+                        `;
+                    }
+                    
+                    container.appendChild(div);
+                }
+            });
+        }
+        
+        function updateDimensionValue(dim, value) {
+            document.getElementById(`dim_${dim}_value`).textContent = value;
+        }
+        
+        async function loadData() {
+            const dataVar = document.getElementById('dataVar').value;
+            const axis1 = document.getElementById('axis1').value;
+            const axis2 = document.getElementById('axis2').value;
+            
+            if (!dataVar || !axis1 || !axis2) {
+                showError('Please select data variable and both axes');
+                return;
+            }
+            
+            if (axis1 === axis2) {
+                showError('X and Y axes must be different');
+                return;
+            }
+            
+            showLoading(true);
+            updateOtherDimensionsControls();
+            
+            try {
+                const otherIndices = getOtherDimensionsValues();
+                const autoDownsample = document.getElementById('autoDownsample').checked;
+                const manualDownsample = document.getElementById('manualDownsample').value;
+                
+                const params = new URLSearchParams({
+                    data_var: dataVar,
+                    axis1: axis1,
+                    axis2: axis2,
+                    other_indices: JSON.stringify(otherIndices),
+                    auto_downsample: autoDownsample,
+                    downsample_factor: autoDownsample ? '1' : manualDownsample
+                });
+                
+                const response = await fetch(`/data-slice?${params}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                
+                currentData = data;
+                createVisualization(data);
+                updateStatus(`Loaded ${data.shape[0]}×${data.shape[1]} data slice (downsample: ${data.downsample_factor}x)`);
+                
+            } catch (error) {
+                showError(`Failed to load data: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function getOtherDimensionsValues() {
+            const values = {};
+            const axis1 = document.getElementById('axis1').value;
+            const axis2 = document.getElementById('axis2').value;
+            const animateAxis = document.getElementById('animateAxis').value;
+            
+            datasetInfo.dimensions.forEach(dim => {
+                if (dim !== axis1 && dim !== axis2 && dim !== animateAxis) {
+                    const control = document.getElementById(`dim_${dim}`);
+                    if (control) {
+                        values[dim] = parseInt(control.value);
+                    }
+                }
+            });
+            
+            return values;
+        }
+        
+        function createVisualization(data) {
+            const trace = {
+                z: data.data,
+                x: data.coord1,
+                y: data.coord2,
+                type: 'heatmap',
+                colorscale: 'Viridis',
+                zmin: data.min_val,
+                zmax: data.max_val
+            };
+            
+            const layout = {
+                title: `${document.getElementById('dataVar').value} (${data.downsample_factor}x downsampled)`,
+                xaxis: { title: data.axis1 },
+                yaxis: { title: data.axis2 },
+                margin: { l: 60, r: 60, t: 60, b: 60 }
+            };
+            
+            Plotly.newPlot('plot', [trace], layout, {responsive: true});
+        }
+        
+        function updateVisualization(data) {
+            if (currentData) {
+                const update = { z: [data] };
+                Plotly.restyle('plot', update, [0]);
+            }
+        }
+        
+        function startAnimation() {
+            const animateAxis = document.getElementById('animateAxis').value;
+            if (!animateAxis || !currentData) {
+                showError('Please select animation axis and load data first');
+                return;
+            }
+            
+            if (isAnimating) return;
+            
+            isAnimating = true;
+            document.getElementById('animateBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('frameInfo').style.display = 'block';
+            
+            const autoDownsample = document.getElementById('autoDownsample').checked;
+            const manualDownsample = document.getElementById('manualDownsample').value;
+            
+            const params = {
+                data_var: document.getElementById('dataVar').value,
+                axis1: document.getElementById('axis1').value,
+                axis2: document.getElementById('axis2').value,
+                animate_axis: animateAxis,
+                other_indices: getOtherDimensionsValues(),
+                fps: parseInt(document.getElementById('fpsSlider').value),
+                batch_size: parseInt(document.getElementById('batchSlider').value),
+                downsample_factor: autoDownsample ? 1 : parseInt(manualDownsample)
+            };
+            
+            websocket.send(JSON.stringify({
+                type: 'animate',
+                params: params
+            }));
+            
+            updateStatus('Animation started...');
+        }
+        
+        function stopAnimation() {
+            isAnimating = false;
+            document.getElementById('animateBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('frameInfo').style.display = 'none';
+            updateStatus('Animation stopped');
+        }
+        
+        function updateFrameInfo(current, total, axisValue) {
+            document.getElementById('currentFrame').textContent = current + 1;
+            document.getElementById('totalFrames').textContent = total;
+            updateStatus(`Frame ${current + 1}/${total}, ${document.getElementById('animateAxis').value} = ${axisValue.toFixed(2)}`);
+        }
+        
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('plot').style.display = show ? 'none' : 'block';
+        }
+        
+        function showError(message) {
+            const status = document.getElementById('status');
+            status.innerHTML = `<div class="error">Error: ${message}</div>`;
+            setTimeout(() => {
+                updateStatus('Ready');
+            }, 5000);
+        }
+        
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+        
+        // Update other dimensions controls when axes change
+        ['axis1', 'axis2', 'animateAxis'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateOtherDimensionsControls);
+        });
+    </script>
+</body>
+</html>
